@@ -1,4 +1,9 @@
-"""Simple local retriever for PawPal+ AI Care Coach."""
+"""Simple local retriever for PawPal+ AI Care Coach.
+
+This module provides the local RAG layer in the system architecture. It reads
+the markdown knowledge base, splits it into sections, and returns the most
+relevant sections using deterministic keyword matching rather than embeddings.
+"""
 
 from __future__ import annotations
 
@@ -18,13 +23,19 @@ class RetrievedSection:
 
 
 class LocalPetCareRetriever:
-    """Retrieve relevant markdown sections using deterministic keyword matching."""
+    """Retrieve relevant markdown sections using deterministic keyword matching.
+
+    The retriever is intentionally simple so the project is reproducible for
+    grading and easy to explain in a live demo.
+    """
 
     def __init__(self, knowledge_path: str | Path = "data/pet_care_knowledge.md") -> None:
         self.knowledge_path = Path(knowledge_path)
         self.sections = self._load_sections()
 
     def _load_sections(self) -> list[dict[str, str]]:
+        """Split the markdown knowledge file into ``##`` heading sections."""
+
         text = self.knowledge_path.read_text(encoding="utf-8").strip()
         pattern = re.compile(r"^##\s+(.+)$", re.MULTILINE)
         matches = list(pattern.finditer(text))
@@ -42,9 +53,13 @@ class LocalPetCareRetriever:
 
     @staticmethod
     def _tokenize(text: str) -> list[str]:
+        """Normalize free text into lowercase alphabetic tokens."""
+
         return re.findall(r"[a-zA-Z]+", text.lower())
 
     def _expand_keywords(self, tokens: Iterable[str]) -> set[str]:
+        """Expand task terms into a small synonym set for recall."""
+
         expanded = set(tokens)
         synonym_groups = {
             "medication": {"medication", "medicine", "meds", "pill", "dose", "dosage", "insulin"},
@@ -68,7 +83,11 @@ class LocalPetCareRetriever:
         conflict_warnings: list[str] | None = None,
         top_k: int = 3,
     ) -> list[RetrievedSection]:
-        """Return the most relevant knowledge sections for the given schedule context."""
+        """Return the most relevant sections for the current schedule context.
+
+        Inputs come from task category, task title, and conflict warnings so
+        retrieval remains grounded in the actual plan shown in the UI.
+        """
 
         query_text = " ".join(
             [

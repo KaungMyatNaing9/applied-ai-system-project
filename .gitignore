@@ -1,0 +1,14 @@
+# Local secrets
+.env
+
+# Virtual environments
+.venv/
+venv/
+
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Tooling noise
+.DS_Store

@@ -1,4 +1,9 @@
-"""Guardrails for AI Care Coach outputs."""
+"""Guardrails for AI Care Coach outputs.
+
+This module is the safety gate in the architecture. It checks the drafted care
+coach response before the UI displays it and forces a safe fallback if the text
+looks unsafe, ungrounded, or too weak to show.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +11,11 @@ import re
 
 
 def check_ai_response_safety(response: str) -> dict[str, object]:
-    """Validate the generated response and provide a safe fallback when needed."""
+    """Validate the generated response and provide a safe fallback when needed.
+
+    The checks are deliberately rule-based and transparent so they are easy to
+    demo, test, and reason about in the final project report.
+    """
 
     issues: list[str] = []
     normalized = response.strip()

@@ -88,10 +88,17 @@ Optional model-backed generation:
 
 ```bash
 pip install openai
-export OPENAI_API_KEY=your_key_here
 ```
 
-The project still works without these optional steps because the AI Care Coach includes a deterministic fallback path.
+Create a local `.env` file in the project root and place your key there:
+
+```env
+OPENAI_API_KEY=your_openai_api_key_here
+```
+
+`ai/care_coach.py` loads this value automatically if it exists. If `.env` is missing, the key is blank, or the `openai` package is not installed, the project still runs using the deterministic fallback summary.
+
+The project still works without these optional steps because the AI Care Coach includes a deterministic fallback path. That fallback is important for grading because it guarantees a stable demo even with no API access.
 
 ## Run Streamlit
 
@@ -111,6 +118,12 @@ The UI displays:
 - retrieved context used
 - guardrail pass/fail status
 - guardrail issues, if any
+
+Assets for the report and demo should be stored in `assets/`, including:
+
+- `assets/architecture.png`
+- `assets/streamlit_demo.png`
+- `assets/ai_care_coach_demo.png`
 
 ## Run Tests
 
@@ -138,6 +151,27 @@ This runs three cases:
 
 The script prints the case name, pass/fail, guardrail result, short explanation, and final score.
 
+Expected sample output:
+
+```text
+Case: normal daily routine
+Pass/Fail: PASS
+Guardrail Result: True | Issues: []
+Explanation: Generated a grounded summary with passing guardrails.
+
+Case: medication-related schedule
+Pass/Fail: PASS
+Guardrail Result: True | Issues: []
+Explanation: Generated a grounded summary with passing guardrails.
+
+Case: overloaded/conflicting schedule
+Pass/Fail: PASS
+Guardrail Result: True | Issues: []
+Explanation: Generated a grounded summary with passing guardrails.
+
+Final Score: 3/3 passed
+```
+
 ## Sample Input / Output
 
 Sample input:
@@ -155,6 +189,32 @@ Summary: The day includes 3 scheduled care tasks. High-priority tasks scheduled 
 Risks: No schedule conflicts were detected.
 Suggestions: Keep medication tasks on time and contact a veterinarian before making any dose changes. Keep meals consistent and monitor appetite changes. Plan walks around safe weather and temperature conditions.
 ```
+
+## Demo Script
+
+1. Run `streamlit run app.py`.
+2. Set the owner name and available time.
+3. Add one or two pets.
+4. Add 2 to 3 tasks, including one medication task such as `Morning Medication`.
+5. Click `Generate schedule`.
+6. Show the generated plan and any conflict warnings.
+7. Click `Generate AI Care Coach Summary`.
+8. Show the final AI care plan, retrieved context, and guardrail status in the UI.
+9. Run `python eval/eval_ai.py`.
+10. Show that the evaluation ends with `Final Score: 3/3 passed`.
+
+## Rubric Mapping
+
+- Base project and original scope: [pawpal_system.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/pawpal_system.py:1), [app.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/app.py:1), and [tests/test_pawpal.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/tests/test_pawpal.py:1)
+- New AI feature: [ai/care_coach.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/care_coach.py:1), [ai/prompts.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/prompts.py:1), and the AI summary button in [app.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/app.py:1)
+- System architecture diagram: [diagram.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/diagram.md:1) and `assets/architecture.png`
+- End-to-end demo: [app.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/app.py:1), `assets/streamlit_demo.png`, and the Demo Script section in this README
+- Reliability / guardrails: [ai/guardrails.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/guardrails.py:1) and [tests/test_guardrails.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/tests/test_guardrails.py:1)
+- README and setup: [README.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/README.md:1)
+- Reflection on AI collaboration: the Reflection On AI Collaboration section in [README.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/README.md:1)
+- Stretch: RAG: [ai/retriever.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/retriever.py:1) and [data/pet_care_knowledge.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/data/pet_care_knowledge.md:1)
+- Stretch: agentic workflow: [ai/care_coach.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/care_coach.py:1) orchestrates retrieval, drafting, and guardrails as one workflow
+- Stretch: test harness: [eval/eval_ai.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/eval/eval_ai.py:1) and [eval/eval_cases.json](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/eval/eval_cases.json:1)
 
 ## Reflection On AI Collaboration
 
