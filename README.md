@@ -1,54 +1,50 @@
 # PawPal+ AI Care Coach
 
-PawPal+ began as a Python OOP pet care planner for busy owners. The original system focused on pets, tasks, priority-based scheduling, recurring care, conflict detection, and plain-English schedule explanations. This final version extends that base project into an applied AI system by adding a local retrieval layer, an AI care coach workflow, and response guardrails inside the main Streamlit app.
+PawPal+ AI Care Coach is a pet care planning system that combines classic Python scheduling logic with a lightweight applied AI workflow. It helps a pet owner organize daily care tasks, explain scheduling decisions, retrieve relevant pet-care guidance from a local knowledge base, and present a guardrailed plain-English care summary that stays safe enough for demo and grading use.
 
-## Original Project
+## Original Project: PawPal+
 
-The original PawPal+ system includes:
+PawPal+ was my original Modules 1-3 project. It focused on object-oriented design and a Streamlit interface for managing pets and daily care tasks, then generating a schedule that prioritizes important work such as feeding, walks, medication, and appointments.
 
-- `pawpal_system.py` with `Task`, `Pet`, `Owner`, and `Scheduler`
-- priority-based schedule generation
-- recurring daily and weekly tasks
-- task filtering by pet and status
-- conflict detection for overlaps and unschedulable work
-- plain-English explanation of schedule decisions
+The original system emphasized OOP structure, task prioritization, recurrence, filtering, and conflict detection. Core behaviors were implemented in `pawpal_system.py` and surfaced through a simple interactive UI in `app.py`.
 
-## Final Project Extension
+## Final AI Extension
 
-The final extension is **PawPal+ AI Care Coach**. After the owner generates a schedule, the app can now:
+The final extension turns the original planner into **PawPal+ AI Care Coach**. After the schedule is generated, the AI workflow reviews scheduled tasks and conflict warnings, retrieves relevant sections from `data/pet_care_knowledge.md`, produces a concise plain-English care plan, and runs guardrails before showing the final output.
 
-- inspect the scheduled tasks and conflict warnings
-- retrieve relevant pet-care guidance from a local markdown knowledge file
-- build a plain-English daily care summary
-- run guardrails before showing the final response
-- fall back to a deterministic safe summary when no OpenAI API key is available
+This design keeps the new AI behavior integrated into the main app rather than separated into a demo-only script. It also preserves reproducibility by supporting a deterministic fallback when no `OPENAI_API_KEY` is available.
 
-This keeps the project reproducible for grading while still supporting optional model-backed generation when `OPENAI_API_KEY` and the `openai` package are available locally.
+## Architecture Overview
 
-## AI Feature
+The system diagram is available in [diagram.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/diagram.md:1), and a rendered version is included at [assets/architecture.png](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/assets/architecture.png).
 
-The AI Care Coach is integrated into `app.py` rather than separated into a standalone demo.
+Data flow:
 
-Main modules:
+`User input -> Streamlit UI -> PawPal scheduler -> RAG retriever -> AI Care Coach -> guardrail evaluator -> final output`
 
-- `ai/retriever.py`: deterministic local RAG using markdown heading sections and keyword matching
-- `ai/prompts.py`: prompt templates for the optional model call
-- `ai/care_coach.py`: end-to-end retrieval, summary generation, guardrail check, and final result packaging
-- `ai/guardrails.py`: safety checks that block diagnosis, dosage changes, unsafe advice, or weak outputs
+In practice, the owner adds pets and tasks in `app.py`, the scheduling engine in `pawpal_system.py` generates the daily plan and conflict warnings, `ai/retriever.py` pulls matching knowledge from the local markdown file, `ai/care_coach.py` drafts the care summary, and `ai/guardrails.py` validates the result before it is displayed. The AI workflow is also exercised separately by [eval/eval_ai.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/eval/eval_ai.py:1).
 
-## System Architecture
+## Screenshots
 
-See [diagram.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/diagram.md:1) for the Mermaid diagram.
+Architecture:
 
-High-level flow:
+![Architecture Diagram](assets/architecture.png)
 
-1. The owner uses the Streamlit UI in `app.py`.
-2. `pawpal_system.py` generates the priority-based schedule and conflict warnings.
-3. The AI Care Coach retrieves matching care guidance from `data/pet_care_knowledge.md`.
-4. The coach drafts a daily summary and suggestions.
-5. Guardrails validate the response before the app displays the final care plan.
+Assigned tasks in the Streamlit UI:
 
-## Project Structure
+![Assigned Tasks](assets/assigned_tasks.png)
+
+Generated schedule showing sorting and scheduling behavior:
+
+![Generated Schedule](assets/generate_schedule.png)
+
+AI Care Coach output using retrieved context:
+
+![AI Care Coach](assets/AI_coach.png)
+
+If you add more screenshots later, store them in `assets/` so the repository stays organized.
+
+## Repository Structure
 
 ```text
 pawpal-plus-ai/
@@ -57,8 +53,6 @@ pawpal-plus-ai/
 ├── requirements.txt
 ├── README.md
 ├── diagram.md
-├── assets/
-│   └── architecture.png
 ├── ai/
 │   ├── __init__.py
 │   ├── care_coach.py
@@ -70,167 +64,243 @@ pawpal-plus-ai/
 ├── eval/
 │   ├── eval_ai.py
 │   └── eval_cases.json
-└── tests/
-    ├── test_pawpal.py
-    ├── test_retriever.py
-    └── test_guardrails.py
+├── tests/
+│   ├── test_pawpal.py
+│   ├── test_retriever.py
+│   └── test_guardrails.py
+└── assets/
+    ├── architecture.png
+    ├── assigned_tasks.png
+    ├── generate_schedule.png
+    └── AI_coach.png
 ```
 
 ## Setup Instructions
 
+Clone the repository and set up a local environment:
+
 ```bash
+git clone <your-repo-url>
+cd applied-ai-system-project
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Optional model-backed generation:
-
-```bash
-pip install openai
-```
-
-Create a local `.env` file in the project root and place your key there:
-
-```env
-OPENAI_API_KEY=your_openai_api_key_here
-```
-
-`ai/care_coach.py` loads this value automatically if it exists. If `.env` is missing, the key is blank, or the `openai` package is not installed, the project still runs using the deterministic fallback summary.
-
-The project still works without these optional steps because the AI Care Coach includes a deterministic fallback path. That fallback is important for grading because it guarantees a stable demo even with no API access.
-
-## Run Streamlit
+Run the Streamlit app:
 
 ```bash
 streamlit run app.py
 ```
 
-In the app:
-
-1. Add the owner, pets, and tasks.
-2. Click `Generate schedule`.
-3. Click `Generate AI Care Coach Summary`.
-
-The UI displays:
-
-- the final AI care plan
-- retrieved context used
-- guardrail pass/fail status
-- guardrail issues, if any
-
-Assets for the report and demo should be stored in `assets/`, including:
-
-- `assets/architecture.png`
-- `assets/streamlit_demo.png`
-- `assets/ai_care_coach_demo.png`
-
-## Run Tests
+Run the test suite:
 
 ```bash
-python -m pytest tests -v
+python -m pytest tests -q
 ```
 
-Coverage now includes:
-
-- core scheduler behavior in `tests/test_pawpal.py`
-- retrieval behavior in `tests/test_retriever.py`
-- guardrail behavior in `tests/test_guardrails.py`
-
-## Run AI Evaluation
+Run the AI evaluation harness:
 
 ```bash
 python eval/eval_ai.py
 ```
 
-This runs three cases:
+### Optional OpenAI API Key
 
-- normal daily routine
-- medication-related schedule
-- overloaded/conflicting schedule
+`OPENAI_API_KEY` is optional. If you want to try the optional model-backed summary path, place your key in a root `.env` file:
 
-The script prints the case name, pass/fail, guardrail result, short explanation, and final score.
-
-Expected sample output:
-
-```text
-Case: normal daily routine
-Pass/Fail: PASS
-Guardrail Result: True | Issues: []
-Explanation: Generated a grounded summary with passing guardrails.
-
-Case: medication-related schedule
-Pass/Fail: PASS
-Guardrail Result: True | Issues: []
-Explanation: Generated a grounded summary with passing guardrails.
-
-Case: overloaded/conflicting schedule
-Pass/Fail: PASS
-Guardrail Result: True | Issues: []
-Explanation: Generated a grounded summary with passing guardrails.
-
-Final Score: 3/3 passed
+```env
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-## Sample Input / Output
+If no API key is provided, the system still works using the deterministic fallback path in `ai/care_coach.py`. That fallback is important for reproducible grading because it avoids requiring paid API access.
 
-Sample input:
+## Demo Flow
 
-- Pet: Bella, dog, age 3
+1. Run `streamlit run app.py`.
+2. Add an owner and 1 to 2 pets.
+3. Add 2 to 3 tasks, including one medication task.
+4. Click `Generate schedule`.
+5. Show the scheduled tasks, skipped tasks, and conflict warnings.
+6. Click `Generate AI Care Coach Summary`.
+7. Show the final AI care plan, retrieved context, and guardrail status.
+8. Run `python eval/eval_ai.py`.
+9. Show the final evaluation result ending with `Final Score: 3/3 passed`.
+
+## Sample Interactions
+
+### A. Normal Routine: Feeding + Walk
+
+Input:
+
+- Pet: Bella, dog, age 4
+- Tasks:
+  - `Breakfast`, `07:30`, high priority, feeding
+  - `Morning Walk`, `08:00`, high priority, exercise
+
+Retrieved context used:
+
+- `Feeding`
+- `Walks`
+
+AI output summary:
+
+```text
+Summary: The day includes 2 scheduled care tasks. High-priority tasks scheduled first included Breakfast, Morning Walk.
+Risks: No schedule conflicts were detected.
+Suggestions: Keep meals consistent and monitor appetite changes. Plan walks around safe weather and temperature conditions.
+```
+
+Guardrail result:
+
+- Passed
+
+### B. Medication Task
+
+Input:
+
+- Pet: Bella, dog, age 4
 - Tasks:
   - `Morning Medication`, `07:00`, high priority, medical
   - `Breakfast`, `07:15`, high priority, feeding
-  - `Evening Walk`, `18:00`, medium priority, exercise
 
-Sample AI output:
+Retrieved context used:
+
+- `Medication`
+- `Feeding`
+- `Vet Appointments`
+
+AI output summary:
 
 ```text
-Summary: The day includes 3 scheduled care tasks. High-priority tasks scheduled first included Morning Medication, Breakfast.
+Summary: The day includes 2 scheduled care tasks. High-priority tasks scheduled first included Morning Medication, Breakfast.
 Risks: No schedule conflicts were detected.
-Suggestions: Keep medication tasks on time and contact a veterinarian before making any dose changes. Keep meals consistent and monitor appetite changes. Plan walks around safe weather and temperature conditions.
+Suggestions: Keep medication tasks on time and contact a veterinarian before making any dose changes. Keep meals consistent and monitor appetite changes.
 ```
 
-## Demo Script
+Guardrail result:
 
-1. Run `streamlit run app.py`.
-2. Set the owner name and available time.
-3. Add one or two pets.
-4. Add 2 to 3 tasks, including one medication task such as `Morning Medication`.
-5. Click `Generate schedule`.
-6. Show the generated plan and any conflict warnings.
-7. Click `Generate AI Care Coach Summary`.
-8. Show the final AI care plan, retrieved context, and guardrail status in the UI.
-9. Run `python eval/eval_ai.py`.
-10. Show that the evaluation ends with `Final Score: 3/3 passed`.
+- Passed
+
+### C. Overloaded or Conflicting Schedule
+
+Input:
+
+- Pet: Bella, dog, age 4
+- Tasks:
+  - `Morning Walk`, `07:00`, high priority, exercise, 30 min
+  - `Breakfast`, `07:10`, high priority, feeding, 15 min
+  - `Vet Appointment`, `08:00`, high priority, medical, 60 min
+- Conflict warnings:
+  - time overlap
+  - budget overflow
+
+Retrieved context used:
+
+- `Safety Warnings`
+- `Walks`
+- `Feeding`
+- `Vet Appointments`
+
+AI output summary:
+
+```text
+Summary: The day includes 3 scheduled care tasks. High-priority tasks scheduled first included Morning Walk, Breakfast, Vet Appointment.
+Risks: WARNING — Time overlap ... ; WARNING — Budget overflow ...
+Suggestions: Treat overlaps and missed care as risks that should be resolved before the day starts. Do not skip veterinary follow-ups when symptoms or appointments are involved.
+```
+
+Guardrail result:
+
+- Passed
+
+## Design Decisions
+
+This project uses a local markdown RAG approach instead of a vector database because the knowledge base is small, the retrieval behavior needs to be reproducible, and the architecture must remain easy to explain in a classroom demo. A simple keyword-based retriever is less powerful than embeddings, but it is transparent, lightweight, and stable.
+
+The AI Care Coach includes a deterministic fallback instead of requiring an API key because the project must run reliably in grading environments. That fallback guarantees an end-to-end output even if network access, API access, or the optional `openai` package is unavailable.
+
+Guardrails were added because pet health guidance can be sensitive. The app should not diagnose pets, tell owners to change medication dosage, or suggest ignoring a veterinarian. For urgent or medical concerns, it should recommend contacting a veterinarian instead.
+
+The `ai/` folder keeps retrieval, prompting, orchestration, and safety checks separate from the scheduling logic in `pawpal_system.py`. This makes the code easier to test and keeps the original OOP planner cleanly separated from the applied AI extension.
+
+`pytest` and the evaluation harness were both included for reliability. Unit tests verify scheduler logic, retrieval behavior, and guardrails, while `eval/eval_ai.py` checks the end-to-end AI workflow on representative scenarios.
+
+Trade-offs:
+
+- The local knowledge base is small.
+- The app does not connect to a real veterinary database.
+- There is no persistent application database.
+- Keyword retrieval is simpler and easier to test, but less powerful than embedding-based retrieval.
+
+## Testing Summary
+
+22 unit tests passed and the AI evaluation harness passed 3 out of 3 scenarios. The system handled normal routines, medication-related tasks, and overloaded/conflicting schedules. The main limitation is that retrieval quality depends on the small local knowledge base.
+
+What worked well:
+
+- Priority-based scheduling and conflict detection remained stable after the AI extension.
+- The retriever consistently pulled medication, feeding, walk, and safety sections for common tasks.
+- The deterministic fallback kept the full system runnable without API credentials.
+
+What did not work perfectly:
+
+- Retrieval quality is only as good as the headings and keywords in the local markdown file.
+- Guardrails are rule-based, so they may miss edge-case unsafe wording not covered by the patterns.
+- The model-backed path is optional and intentionally not required for grading.
+
+What I learned:
+
+- Applied AI features are easier to defend when the non-AI baseline is already strong.
+- Small local evaluation loops catch reliability issues earlier than relying on a UI demo alone.
+
+## Reliability and Evaluation
+
+Reliability in this project comes from several layers rather than a single model call.
+
+- Automated tests: `tests/test_pawpal.py`, `tests/test_retriever.py`, and `tests/test_guardrails.py` validate scheduling, retrieval, and safety behavior.
+- Guardrails: `ai/guardrails.py` blocks responses that suggest dosage changes, diagnoses, ignoring veterinarians, unsafe advice, or empty/weak output.
+- Deterministic fallback: `ai/care_coach.py` can generate a safe structured response without any API key.
+- Evaluation harness: `eval/eval_ai.py` runs three end-to-end scenarios and reports pass/fail results.
+- Error handling: the optional OpenAI path is wrapped so missing API keys or a missing `openai` package simply fall back to the deterministic path rather than crashing the app.
+
+The system does not claim a confidence score because one is not implemented.
+
+## Reflection and Ethics
+
+This system has clear limitations. The knowledge base is small, local, and manually written, so the advice it surfaces is narrow and potentially biased toward the examples and wording included in `data/pet_care_knowledge.md`. Because retrieval is keyword-based, it may also miss relevant context when task wording differs from the expected terms.
+
+The AI could be misused if a user treated it like a veterinary diagnostic tool. To reduce that risk, the design intentionally avoids diagnosis, blocks dosage-change advice through guardrails, and pushes urgent or medical concerns back to a veterinarian. Ethically, that boundary is important because pet health advice can affect real animals.
+
+One thing that surprised me while testing reliability was how much value came from the deterministic fallback. Even without API access, the system still produced coherent, testable outputs, which made the project much easier to demo and evaluate consistently.
+
+I collaborated with AI as a coding and design assistant rather than as an authority on veterinary advice. AI was helpful for structuring the applied AI workflow, suggesting modular separation between retrieval and guardrails, and improving the clarity of documentation and evaluation steps.
+
+One helpful AI suggestion was to keep the retriever deterministic and local instead of adding unnecessary infrastructure. That made the project easier to explain and more stable for grading.
+
+One flawed AI suggestion was the temptation to make the assistant sound more medically confident than it should. That had to be corrected by enforcing stricter guardrails and clearer ethical framing.
+
+The final ethical rule for this project is simple: the app should not diagnose pets or tell owners to change medication dosage. For urgent or medical concerns, it should recommend contacting a veterinarian.
+
+## Video Walkthrough
+
+Loom link: [Add Loom link here]
+
+Video checklist:
+
+- End-to-end system run with 2 to 3 inputs
+- RAG / AI Care Coach behavior
+- Retrieved context shown in the UI
+- Guardrail / evaluation behavior
+- Clear final outputs
 
 ## Rubric Mapping
 
-- Base project and original scope: [pawpal_system.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/pawpal_system.py:1), [app.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/app.py:1), and [tests/test_pawpal.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/tests/test_pawpal.py:1)
-- New AI feature: [ai/care_coach.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/care_coach.py:1), [ai/prompts.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/prompts.py:1), and the AI summary button in [app.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/app.py:1)
-- System architecture diagram: [diagram.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/diagram.md:1) and `assets/architecture.png`
-- End-to-end demo: [app.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/app.py:1), `assets/streamlit_demo.png`, and the Demo Script section in this README
-- Reliability / guardrails: [ai/guardrails.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/guardrails.py:1) and [tests/test_guardrails.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/tests/test_guardrails.py:1)
-- README and setup: [README.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/README.md:1)
-- Reflection on AI collaboration: the Reflection On AI Collaboration section in [README.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/README.md:1)
-- Stretch: RAG: [ai/retriever.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/retriever.py:1) and [data/pet_care_knowledge.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/data/pet_care_knowledge.md:1)
-- Stretch: agentic workflow: [ai/care_coach.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/care_coach.py:1) orchestrates retrieval, drafting, and guardrails as one workflow
-- Stretch: test harness: [eval/eval_ai.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/eval/eval_ai.py:1) and [eval/eval_cases.json](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/eval/eval_cases.json:1)
-
-## Reflection On AI Collaboration
-
-This project uses AI as a constrained assistant rather than an unrestricted decision-maker. The retriever narrows the context to local pet-care notes, the care coach turns schedule data into owner-friendly language, and the guardrails enforce hard limits on unsafe medical behavior. That combination made it practical to add AI value without giving up reproducibility or safety.
-
-## Limitations
-
-- The retriever is keyword-based and intentionally simple; it does not use embeddings or semantic ranking.
-- The fallback summary is deterministic and less expressive than a model-generated answer.
-- Guardrails are rule-based and may miss subtle unsafe phrasing outside the defined patterns.
-- The app does not persist data beyond the current Streamlit session.
-
-## Future Improvements
-
-- Add stronger retrieval scoring and better synonym coverage.
-- Store schedules and care history across sessions.
-- Add UI-level tests for the Streamlit workflow.
-- Expand the evaluation set with adversarial unsafe-response cases.
-- Add richer structured outputs from the optional model path.
+- Base project: [README.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/README.md:1) and [pawpal_system.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/pawpal_system.py:1)
+- New AI feature: [ai/care_coach.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/care_coach.py:1)
+- RAG: [ai/retriever.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/retriever.py:1) and [data/pet_care_knowledge.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/data/pet_care_knowledge.md:1)
+- Guardrails: [ai/guardrails.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/ai/guardrails.py:1)
+- Evaluation: [eval/eval_ai.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/eval/eval_ai.py:1)
+- UI integration: [app.py](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/app.py:1)
+- Architecture: [diagram.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/diagram.md:1) and [assets/](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/assets)
+- Tests: [tests/](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/tests)
