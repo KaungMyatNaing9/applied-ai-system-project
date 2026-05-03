@@ -42,8 +42,6 @@ AI Care Coach output using retrieved context:
 
 ![AI Care Coach](assets/AI_coach.png)
 
-If you add more screenshots later, store them in `assets/` so the repository stays organized.
-
 ## Repository Structure
 
 ```text
@@ -216,7 +214,7 @@ Guardrail result:
 
 ## Design Decisions
 
-This project uses a local markdown RAG approach instead of a vector database because the knowledge base is small, the retrieval behavior needs to be reproducible, and the architecture must remain easy to explain in a classroom demo. A simple keyword-based retriever is less powerful than embeddings, but it is transparent, lightweight, and stable.
+This project uses a local markdown RAG approach instead of a vector database because the knowledge base is small, the retrieval behavior needs to be reproducible, and the architecture needs to stay easy to explain in a live demo. A simple keyword-based retriever is less powerful than embeddings, but it is transparent, lightweight, and stable.
 
 The AI Care Coach includes a deterministic fallback instead of requiring an API key because the project must run reliably in grading environments. That fallback guarantees an end-to-end output even if network access, API access, or the optional `openai` package is unavailable.
 
@@ -284,7 +282,7 @@ The final ethical rule for this project is simple: the app should not diagnose p
 
 ## Video Walkthrough
 
-Loom link: [Add Loom link here]
+Loom link: https://www.loom.com/share/0c55e80215394e4992e37b7f4fb9c706
 
 Video checklist:
 
