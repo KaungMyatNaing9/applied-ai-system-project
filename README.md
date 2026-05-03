@@ -1,147 +1,176 @@
-# PawPal+
+# PawPal+ AI Care Coach
 
-**A daily pet care planner for busy owners.**
+PawPal+ began as a Python OOP pet care planner for busy owners. The original system focused on pets, tasks, priority-based scheduling, recurring care, conflict detection, and plain-English schedule explanations. This final version extends that base project into an applied AI system by adding a local retrieval layer, an AI care coach workflow, and response guardrails inside the main Streamlit app.
 
-PawPal+ helps pet owners stay on top of every feeding, walk, grooming session, and vet appointment — no matter how hectic the day gets. Add your pets and their care tasks, set your available time, and let PawPal+ build an optimised daily schedule with plain-English reasoning and automatic conflict warnings.
+## Original Project
 
----
+The original PawPal+ system includes:
 
-## Features
+- `pawpal_system.py` with `Task`, `Pet`, `Owner`, and `Scheduler`
+- priority-based schedule generation
+- recurring daily and weekly tasks
+- task filtering by pet and status
+- conflict detection for overlaps and unschedulable work
+- plain-English explanation of schedule decisions
 
-### Intelligent Priority-Based Scheduling
+## Final Project Extension
 
-PawPal+ ranks tasks by urgency before fitting them into your day. High-priority tasks (medications, feeding) are always scheduled first. Within the same priority tier, shorter tasks are placed ahead of longer ones — maximising the number of care items completed when time is tight. The scheduler explains every decision in plain language so owners understand exactly why the plan looks the way it does.
+The final extension is **PawPal+ AI Care Coach**. After the owner generates a schedule, the app can now:
 
-### Task Sorting by Time
+- inspect the scheduled tasks and conflict warnings
+- retrieve relevant pet-care guidance from a local markdown knowledge file
+- build a plain-English daily care summary
+- run guardrails before showing the final response
+- fall back to a deterministic safe summary when no OpenAI API key is available
 
-Any task can be assigned an optional start time (`HH:MM`). The app sorts your task list chronologically so you always see the day's activities in the order they should happen. Tasks without a fixed start time are placed at the end, giving structured tasks priority in the view without hiding flexible ones.
+This keeps the project reproducible for grading while still supporting optional model-backed generation when `OPENAI_API_KEY` and the `openai` package are available locally.
 
-### Filtering and Exploration
+## AI Feature
 
-Quickly zero in on what matters using two independent filters:
+The AI Care Coach is integrated into `app.py` rather than separated into a standalone demo.
 
-- **Filter by pet** — see only the tasks belonging to a specific animal.
-- **Filter by status** — switch between All, Pending, and Completed views in one click.
+Main modules:
 
-Both filters work together so you can ask, for example, "what has Bella still got to do today?" at a glance.
+- `ai/retriever.py`: deterministic local RAG using markdown heading sections and keyword matching
+- `ai/prompts.py`: prompt templates for the optional model call
+- `ai/care_coach.py`: end-to-end retrieval, summary generation, guardrail check, and final result packaging
+- `ai/guardrails.py`: safety checks that block diagnosis, dosage changes, unsafe advice, or weak outputs
 
-### Recurring Task Automation
+## System Architecture
 
-Mark a daily or weekly task as complete and PawPal+ automatically queues the next occurrence — no manual re-entry required. One-off tasks are simply marked done and removed from the pending list. The recurrence engine calculates the correct next due date using `datetime.timedelta`, keeping the care schedule perpetually up to date without any extra effort from the owner.
+See [diagram.md](/Users/kaungmyatnaing/GitRepo/applied-ai-system-project/diagram.md:1) for the Mermaid diagram.
 
-### Conflict Detection with Warnings
+High-level flow:
 
-After every schedule generation, PawPal+ scans the plan for three types of problem and surfaces them as plain-language warnings:
+1. The owner uses the Streamlit UI in `app.py`.
+2. `pawpal_system.py` generates the priority-based schedule and conflict warnings.
+3. The AI Care Coach retrieves matching care guidance from `data/pet_care_knowledge.md`.
+4. The coach drafts a daily summary and suggestions.
+5. Guardrails validate the response before the app displays the final care plan.
 
-| Warning type | What it catches |
-|---|---|
-| **Budget overflow** | Total scheduled minutes exceed your daily time limit |
-| **Unschedulable task** | A single task is longer than your entire daily budget and can never be selected |
-| **Time overlap** | Two tasks have intersecting time windows and cannot both run as planned |
+## Project Structure
 
-Overlap warnings name both tasks and their pets — `cross-pet: Bella / bbd` or `same pet: Bella` — so it is immediately clear whether a conflict is within one animal's routine or spans multiple pets.
+```text
+pawpal-plus-ai/
+├── app.py
+├── pawpal_system.py
+├── requirements.txt
+├── README.md
+├── diagram.md
+├── assets/
+│   └── architecture.png
+├── ai/
+│   ├── __init__.py
+│   ├── care_coach.py
+│   ├── retriever.py
+│   ├── guardrails.py
+│   └── prompts.py
+├── data/
+│   └── pet_care_knowledge.md
+├── eval/
+│   ├── eval_ai.py
+│   └── eval_cases.json
+└── tests/
+    ├── test_pawpal.py
+    ├── test_retriever.py
+    └── test_guardrails.py
+```
 
----
-
-## Screenshots
-
-### Owner Setup and Pet Registration
-
-![Owner setup and pet registration](demo1.png)
-
-Enter your name and daily time budget, then register as many pets as you like. Each pet tracks its own task list independently.
-
----
-
-### Adding Tasks
-
-![Adding a task to a pet](demo2.png)
-
-Assign a task to any pet with a title, duration, priority, category, optional start time, and recurrence frequency. Your full pet-and-task roster is shown below the form, grouped by pet with a live task count.
-
----
-
-### Filtering and Schedule Generation
-
-![Filter panel and generated schedule](demo3.png)
-
-Filter tasks by pet or completion status before generating the schedule. Hit **Generate schedule** and PawPal+ fits as many tasks as possible into your time budget, displaying the result as a sortable table with a summary banner.
-
----
-
-### Conflict Check and Plan Explanation
-
-![Conflict warnings and plan explanation](demo4.png)
-
-Any time-window overlaps or budget issues appear as amber warnings directly below the schedule. Expand **Why this order?** to read a step-by-step explanation of the scheduling rationale — including time used, time remaining, and the reason each task was ranked where it is.
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Python 3.10 or later
-- pip
-
-### Setup
+## Setup Instructions
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### Run the app
+Optional model-backed generation:
+
+```bash
+pip install openai
+export OPENAI_API_KEY=your_key_here
+```
+
+The project still works without these optional steps because the AI Care Coach includes a deterministic fallback path.
+
+## Run Streamlit
 
 ```bash
 streamlit run app.py
 ```
 
----
+In the app:
 
-## Project Structure
+1. Add the owner, pets, and tasks.
+2. Click `Generate schedule`.
+3. Click `Generate AI Care Coach Summary`.
 
-```
-pawpal_system.py   — Core domain classes: Task, Pet, Owner, Scheduler
-app.py             — Streamlit UI
-tests/
-  test_pawpal.py   — Automated test suite (18 tests)
-diagram.md         — UML class diagram (updated to match final implementation)
-```
+The UI displays:
 
----
+- the final AI care plan
+- retrieved context used
+- guardrail pass/fail status
+- guardrail issues, if any
 
-## Running the Tests
+## Run Tests
 
 ```bash
-python -m pytest tests/test_pawpal.py -v
+python -m pytest tests -v
 ```
 
-### What the test suite covers
+Coverage now includes:
 
-18 pytest functions across five areas:
+- core scheduler behavior in `tests/test_pawpal.py`
+- retrieval behavior in `tests/test_retriever.py`
+- guardrail behavior in `tests/test_guardrails.py`
 
-| Area | Tests |
-|---|---|
-| **Task sorting** | Chronological order is correct for mixed `HH:MM` values; tasks with no time sort last |
-| **Recurring tasks** | Daily tasks recur +1 day, weekly tasks recur +7 days, one-off tasks produce no follow-up; new occurrence is appended to the pet's task list |
-| **Conflict detection** | Same-pet time overlaps are flagged; cross-pet overlaps are labelled `cross-pet`; tasks that exceed the daily budget are reported as unschedulable; non-overlapping tasks produce zero warnings |
-| **Edge cases** | Pet with no tasks, owner with no pets, all tasks already completed, duplicate task IDs silently ignored |
-| **Filtering** | `filter_by_pet` returns only the correct pet's tasks; unknown pet name returns an empty list |
+## Run AI Evaluation
 
-### Confidence level
+```bash
+python eval/eval_ai.py
+```
 
-**★★★★☆ (4 / 5)**
+This runs three cases:
 
-The core scheduling behaviours — sorting, recurrence, conflict detection, and filtering — are each covered by multiple targeted tests, and all 18 pass. The rating stops short of 5 stars because the tests run against in-memory objects only; there is no coverage of the Streamlit UI layer, persistent storage, or edge-case user inputs such as malformed `HH:MM` strings or out-of-range priorities.
+- normal daily routine
+- medication-related schedule
+- overloaded/conflicting schedule
 
----
+The script prints the case name, pass/fail, guardrail result, short explanation, and final score.
 
-## System Design
+## Sample Input / Output
 
-The full UML class diagram is in [diagram.md](diagram.md). Key design decisions:
+Sample input:
 
-- **Owner aggregates tasks through pets** — there is no separate owner-level task list; `Owner.get_all_tasks()` and `Owner.get_pending_tasks()` traverse the pet roster dynamically.
-- **Composition over aggregation** — pets and their tasks are deleted together with the owner; tasks belong unambiguously to one pet.
-- **Conflict warnings are data, not exceptions** — `detect_conflicts()` returns a plain list of strings so the UI can decide how to display them without try/except boilerplate.
+- Pet: Bella, dog, age 3
+- Tasks:
+  - `Morning Medication`, `07:00`, high priority, medical
+  - `Breakfast`, `07:15`, high priority, feeding
+  - `Evening Walk`, `18:00`, medium priority, exercise
+
+Sample AI output:
+
+```text
+Summary: The day includes 3 scheduled care tasks. High-priority tasks scheduled first included Morning Medication, Breakfast.
+Risks: No schedule conflicts were detected.
+Suggestions: Keep medication tasks on time and contact a veterinarian before making any dose changes. Keep meals consistent and monitor appetite changes. Plan walks around safe weather and temperature conditions.
+```
+
+## Reflection On AI Collaboration
+
+This project uses AI as a constrained assistant rather than an unrestricted decision-maker. The retriever narrows the context to local pet-care notes, the care coach turns schedule data into owner-friendly language, and the guardrails enforce hard limits on unsafe medical behavior. That combination made it practical to add AI value without giving up reproducibility or safety.
+
+## Limitations
+
+- The retriever is keyword-based and intentionally simple; it does not use embeddings or semantic ranking.
+- The fallback summary is deterministic and less expressive than a model-generated answer.
+- Guardrails are rule-based and may miss subtle unsafe phrasing outside the defined patterns.
+- The app does not persist data beyond the current Streamlit session.
+
+## Future Improvements
+
+- Add stronger retrieval scoring and better synonym coverage.
+- Store schedules and care history across sessions.
+- Add UI-level tests for the Streamlit workflow.
+- Expand the evaluation set with adversarial unsafe-response cases.
+- Add richer structured outputs from the optional model path.

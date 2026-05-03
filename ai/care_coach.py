@@ -1,0 +1,221 @@
+"""Main AI Care Coach workflow for PawPal+."""
+
+from __future__ import annotations
+
+from dataclasses import asdict, is_dataclass
+import os
+from pathlib import Path
+from typing import Any
+
+from .guardrails import check_ai_response_safety
+from .prompts import SYSTEM_PROMPT, build_user_prompt
+from .retriever import LocalPetCareRetriever, RetrievedSection
+
+
+def _normalize_schedule_item(item: Any) -> dict[str, Any]:
+    if is_dataclass(item):
+        return asdict(item)
+    if isinstance(item, dict):
+        return dict(item)
+
+    return {
+        "id": getattr(item, "id", None),
+        "title": getattr(item, "title", "Untitled task"),
+        "duration_minutes": getattr(item, "duration_minutes", 0),
+        "priority": getattr(item, "priority", "unknown"),
+        "category": getattr(item, "category", "other"),
+        "time": getattr(item, "time", None),
+    }
+
+
+def _schedule_to_text(schedule_items: list[dict[str, Any]]) -> str:
+    if not schedule_items:
+        return "No tasks were scheduled."
+
+    lines = []
+    for item in schedule_items:
+        time_label = item.get("time") or "flexible time"
+        lines.append(
+            f"- {time_label}: {item.get('title', 'Task')} "
+            f"({item.get('category', 'other')}, {item.get('priority', 'unknown')} priority, "
+            f"{item.get('duration_minutes', 0)} min)"
+        )
+    return "\n".join(lines)
+
+
+def _retrieve_context(
+    schedule_items: list[dict[str, Any]],
+    conflict_warnings: list[str],
+    knowledge_path: str | Path,
+) -> list[RetrievedSection]:
+    retriever = LocalPetCareRetriever(knowledge_path)
+    results: dict[str, RetrievedSection] = {}
+
+    for item in schedule_items:
+        sections = retriever.retrieve(
+            task_category=str(item.get("category", "")),
+            task_title=str(item.get("title", "")),
+            conflict_warnings=conflict_warnings,
+            top_k=3,
+        )
+        for section in sections:
+            existing = results.get(section.title)
+            if existing is None or section.score > existing.score:
+                results[section.title] = section
+
+    if conflict_warnings:
+        for section in retriever.retrieve(
+            task_category="",
+            task_title="",
+            conflict_warnings=conflict_warnings,
+            top_k=3,
+        ):
+            existing = results.get(section.title)
+            if existing is None or section.score > existing.score:
+                results[section.title] = section
+
+    ordered = sorted(results.values(), key=lambda item: (-item.score, item.title.lower()))
+    return ordered[:4]
+
+
+def _build_deterministic_sections(
+    schedule_items: list[dict[str, Any]],
+    conflict_warnings: list[str],
+    retrieved_context: list[RetrievedSection],
+) -> dict[str, Any]:
+    if schedule_items:
+        high_priority = [item["title"] for item in schedule_items if item.get("priority") == "high"]
+        priority_reason = (
+            f"High-priority tasks scheduled first included {', '.join(high_priority)}."
+            if high_priority
+            else "The plan balances the available tasks by urgency and time."
+        )
+        summary = (
+            f"The day includes {len(schedule_items)} scheduled care task(s). "
+            f"{priority_reason}"
+        )
+    else:
+        summary = "No care tasks were scheduled for today."
+
+    risks = conflict_warnings or ["No schedule conflicts were detected."]
+
+    suggestions: list[str] = []
+    for section in retrieved_context:
+        if section.title == "Medication":
+            suggestions.append("Keep medication tasks on time and contact a veterinarian before making any dose changes.")
+        elif section.title == "Feeding":
+            suggestions.append("Keep meals consistent and monitor appetite changes.")
+        elif section.title == "Walks":
+            suggestions.append("Plan walks around safe weather and temperature conditions.")
+        elif section.title == "Grooming":
+            suggestions.append("Use flexible time for grooming if higher-priority care takes most of the day.")
+        elif section.title == "Vet Appointments":
+            suggestions.append("Do not skip veterinary follow-ups when symptoms or appointments are involved.")
+        elif section.title == "Safety Warnings":
+            suggestions.append("Treat overlaps and missed care as risks that should be resolved before the day starts.")
+
+    if not suggestions:
+        suggestions.append("Follow the planned routine and contact a veterinarian for urgent concerns.")
+
+    final_message = "\n".join(
+        [
+            f"Summary: {summary}",
+            "Risks: " + "; ".join(risks),
+            "Suggestions: " + " ".join(suggestions),
+        ]
+    )
+
+    return {
+        "summary": summary,
+        "risks": risks,
+        "suggestions": suggestions,
+        "final_message": final_message,
+    }
+
+
+def _maybe_generate_openai_message(
+    schedule_items: list[dict[str, Any]],
+    conflict_warnings: list[str],
+    retrieved_context: list[RetrievedSection],
+) -> str | None:
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        return None
+
+    try:
+        from openai import OpenAI
+    except ImportError:
+        return None
+
+    client = OpenAI(api_key=api_key)
+    retrieved_text = "\n\n".join(
+        f"{section.title}:\n{section.text}" for section in retrieved_context
+    ) or "No retrieved context."
+
+    response = client.responses.create(
+        model="gpt-4.1-mini",
+        input=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": build_user_prompt(
+                    schedule_text=_schedule_to_text(schedule_items),
+                    conflict_text="\n".join(conflict_warnings) or "No conflicts.",
+                    retrieved_context_text=retrieved_text,
+                ),
+            },
+        ],
+    )
+    text = getattr(response, "output_text", "").strip()
+    return text or None
+
+
+def generate_ai_care_coach_summary(
+    schedule_items: list[Any],
+    conflict_warnings: list[str] | None = None,
+    pet_task_data: list[dict[str, Any]] | None = None,
+    knowledge_path: str | Path = "data/pet_care_knowledge.md",
+) -> dict[str, Any]:
+    """Generate the final AI care coach result with deterministic fallback."""
+
+    normalized_schedule = [_normalize_schedule_item(item) for item in schedule_items]
+    normalized_conflicts = list(conflict_warnings or [])
+    _ = pet_task_data or []
+
+    retrieved_context = _retrieve_context(
+        schedule_items=normalized_schedule,
+        conflict_warnings=normalized_conflicts,
+        knowledge_path=knowledge_path,
+    )
+    sections = _build_deterministic_sections(
+        schedule_items=normalized_schedule,
+        conflict_warnings=normalized_conflicts,
+        retrieved_context=retrieved_context,
+    )
+
+    model_message = _maybe_generate_openai_message(
+        schedule_items=normalized_schedule,
+        conflict_warnings=normalized_conflicts,
+        retrieved_context=retrieved_context,
+    )
+    candidate_message = model_message or sections["final_message"]
+
+    guardrail_result = check_ai_response_safety(candidate_message)
+    final_message = (
+        candidate_message
+        if guardrail_result["passed"]
+        else guardrail_result["safe_fallback_message"]
+    )
+
+    return {
+        "summary": sections["summary"],
+        "risks": sections["risks"],
+        "suggestions": sections["suggestions"],
+        "retrieved_context": [
+            {"title": section.title, "text": section.text, "score": section.score}
+            for section in retrieved_context
+        ],
+        "guardrail_passed": guardrail_result["passed"],
+        "guardrail_issues": guardrail_result["issues"],
+        "final_message": final_message,
+    }

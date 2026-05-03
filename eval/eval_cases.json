@@ -1,0 +1,79 @@
+[
+  {
+    "name": "normal daily routine",
+    "schedule_items": [
+      {
+        "title": "Breakfast",
+        "duration_minutes": 10,
+        "priority": "high",
+        "category": "feeding",
+        "time": "07:30"
+      },
+      {
+        "title": "Morning Walk",
+        "duration_minutes": 25,
+        "priority": "high",
+        "category": "exercise",
+        "time": "08:00"
+      },
+      {
+        "title": "Brush Coat",
+        "duration_minutes": 10,
+        "priority": "medium",
+        "category": "grooming",
+        "time": "18:00"
+      }
+    ],
+    "conflict_warnings": []
+  },
+  {
+    "name": "medication-related schedule",
+    "schedule_items": [
+      {
+        "title": "Morning Medication",
+        "duration_minutes": 5,
+        "priority": "high",
+        "category": "medical",
+        "time": "07:00"
+      },
+      {
+        "title": "Breakfast",
+        "duration_minutes": 10,
+        "priority": "high",
+        "category": "feeding",
+        "time": "07:15"
+      }
+    ],
+    "conflict_warnings": []
+  },
+  {
+    "name": "overloaded/conflicting schedule",
+    "schedule_items": [
+      {
+        "title": "Morning Walk",
+        "duration_minutes": 30,
+        "priority": "high",
+        "category": "exercise",
+        "time": "07:00"
+      },
+      {
+        "title": "Breakfast",
+        "duration_minutes": 15,
+        "priority": "high",
+        "category": "feeding",
+        "time": "07:10"
+      },
+      {
+        "title": "Vet Appointment",
+        "duration_minutes": 60,
+        "priority": "high",
+        "category": "medical",
+        "time": "08:00"
+      }
+    ],
+    "conflict_warnings": [
+      "WARNING — Time overlap (same pet: Bella): 'Morning Walk' starts 07:00 and runs 30 min, overlapping 'Breakfast' which starts 07:10 and runs 15 min.",
+      "WARNING — Budget overflow: 105 min scheduled but only 90 min available."
+    ]
+  }
+]

@@ -1,5 +1,6 @@
 import re
 import streamlit as st
+from ai.care_coach import generate_ai_care_coach_summary
 from pawpal_system import Owner, Pet, Task, Scheduler
 
 st.set_page_config(page_title="PawPal+", page_icon="🐾", layout="centered")
@@ -19,6 +20,18 @@ if "next_task_id" not in st.session_state:
 
 if "feedback" not in st.session_state:
     st.session_state.feedback = None   # ("success"|"warning"|"error", message) | None
+
+if "latest_plan" not in st.session_state:
+    st.session_state.latest_plan = None
+
+if "latest_conflicts" not in st.session_state:
+    st.session_state.latest_conflicts = []
+
+if "latest_explanation" not in st.session_state:
+    st.session_state.latest_explanation = ""
+
+if "latest_ai_result" not in st.session_state:
+    st.session_state.latest_ai_result = None
 
 owner: Owner = st.session_state.owner
 
@@ -60,6 +73,10 @@ with st.form("owner_form"):
 if save_owner:
     st.session_state.owner.name = new_name
     st.session_state.owner.daily_available_time = new_time
+    st.session_state.latest_plan = None
+    st.session_state.latest_conflicts = []
+    st.session_state.latest_explanation = ""
+    st.session_state.latest_ai_result = None
     owner = st.session_state.owner
     st.session_state.feedback = ("success", f"Owner updated: {new_name}, {new_time} min/day.")
     st.rerun()
@@ -91,6 +108,10 @@ if add_pet_btn:
     )
     st.session_state.owner.add_pet(new_pet)
     st.session_state.next_pet_id += 1
+    st.session_state.latest_plan = None
+    st.session_state.latest_conflicts = []
+    st.session_state.latest_explanation = ""
+    st.session_state.latest_ai_result = None
     st.session_state.feedback = ("success", f"Added {pet_name} the {species}.")
     st.rerun()
 
@@ -172,6 +193,10 @@ else:
             )
             pet_options[selected_pet_name].add_task(new_task)
             st.session_state.next_task_id += 1
+            st.session_state.latest_plan = None
+            st.session_state.latest_conflicts = []
+            st.session_state.latest_explanation = ""
+            st.session_state.latest_ai_result = None
             time_label = f" @ {parsed_time}" if parsed_time else ""
             st.session_state.feedback = (
                 "success",
@@ -309,6 +334,32 @@ else:
     if st.button("Generate schedule", type="primary"):
         scheduler = Scheduler(owner)
         plan = scheduler.generate_daily_plan()   # also populates conflict_warnings
+        st.session_state.latest_plan = plan
+        st.session_state.latest_conflicts = list(scheduler.conflict_warnings)
+        st.session_state.latest_explanation = scheduler.explain_plan()
+        st.session_state.latest_ai_result = None
+
+    plan = st.session_state.latest_plan
+
+    if plan is None:
+        st.info("Generate a schedule to review the daily plan and AI summary.")
+    else:
+        review_scheduler = Scheduler(owner)
+        review_scheduler.scheduled_tasks = list(plan)
+        task_pet_map = {t.id: p.name for p in owner.pets for t in p.tasks}
+        time_sorted_plan = review_scheduler.sort_by_time(plan)
+        coach_input = [
+            {
+                "id": task.id,
+                "pet_name": task_pet_map.get(task.id, "Unknown"),
+                "title": task.title,
+                "duration_minutes": task.duration_minutes,
+                "priority": task.priority,
+                "category": task.category,
+                "time": task.time,
+            }
+            for task in time_sorted_plan
+        ]
 
         if not plan:
             st.warning(
@@ -316,18 +367,13 @@ else:
                 "Try increasing your available time or reducing task durations."
             )
         else:
-            used      = sum(t.duration_minutes for t in plan)
-            remaining = scheduler.get_remaining_time()
+            used = sum(t.duration_minutes for t in plan)
+            remaining = review_scheduler.get_remaining_time()
 
-            # --- Summary banner ---
             st.success(
                 f"Plan ready — {len(plan)} task(s) scheduled, "
                 f"{used} min used, {remaining} min free."
             )
-
-            # --- Schedule table sorted chronologically by start time ---
-            task_pet_map = {t.id: p.name for p in owner.pets for t in p.tasks}
-            time_sorted_plan = scheduler.sort_by_time(plan)
 
             schedule_rows = [
                 {
@@ -343,7 +389,6 @@ else:
             ]
             st.table(schedule_rows)
 
-            # --- Skipped tasks ---
             scheduled_ids = {t.id for t in plan}
             skipped = [
                 t for t in owner.get_all_tasks()
@@ -359,16 +404,42 @@ else:
                             f" — {reason}"
                         )
 
-            # --- Conflict warnings ---
-            st.markdown("#### Conflict Check")
-            if not scheduler.conflict_warnings:
-                st.success("No scheduling conflicts detected — your plan looks clean!")
-            else:
-                for warning in scheduler.conflict_warnings:
-                    # Strip the leading "WARNING — " prefix for a cleaner UI label.
-                    display_msg = warning.removeprefix("WARNING — ")
-                    st.warning(f"⚠️ {display_msg}")
+        st.markdown("#### Conflict Check")
+        if not st.session_state.latest_conflicts:
+            st.success("No scheduling conflicts detected — your plan looks clean!")
+        else:
+            for warning in st.session_state.latest_conflicts:
+                display_msg = warning.removeprefix("WARNING — ")
+                st.warning(f"⚠️ {display_msg}")
 
-            # --- Scheduling rationale ---
-            with st.expander("Why this order?"):
-                st.text(scheduler.explain_plan())
+        with st.expander("Why this order?"):
+            st.text(st.session_state.latest_explanation)
+
+        st.markdown("#### AI Care Coach")
+        if st.button("Generate AI Care Coach Summary"):
+            st.session_state.latest_ai_result = generate_ai_care_coach_summary(
+                schedule_items=coach_input,
+                conflict_warnings=st.session_state.latest_conflicts,
+                pet_task_data=coach_input,
+            )
+
+        ai_result = st.session_state.latest_ai_result
+        if ai_result:
+            st.markdown("##### Final AI Care Plan")
+            st.write(ai_result["final_message"])
+
+            st.markdown("##### Retrieved Context Used")
+            for section in ai_result["retrieved_context"]:
+                with st.expander(f"{section['title']} (score: {section['score']})"):
+                    st.write(section["text"])
+
+            st.markdown("##### Guardrail Status")
+            if ai_result["guardrail_passed"]:
+                st.success("Passed")
+            else:
+                st.error("Failed")
+
+            if ai_result["guardrail_issues"]:
+                st.markdown("##### Guardrail Issues")
+                for issue in ai_result["guardrail_issues"]:
+                    st.write(f"- {issue}")
